@@ -1,30 +1,27 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
+import personService from './services/persons'
 
 const App = () => {
   const [persons, setPersons] = useState([])
   const [search, setSearch] = useState('')
   const [newInput, setInput] = useState(
-    {name: '', number: '', id: ''}
+    {name: '', number: ''}
   )
-  
-  useEffect(() => {
-    console.log('effect')
-    axios
-      .get('http://localhost:3001/persons')
-      .then(response => {
-        console.log('promise fulfilled')
-        setPersons(response.data)
-      })
-  }, [])
-
   const personsToShow = persons.filter(person =>
     person.name.toLocaleLowerCase().includes(search.toLowerCase()), 
     persons
   )
+
+  useEffect(() => {
+    personService
+      .getAll()
+      .then(initialPersons => {
+        setPersons(initialPersons)
+      })
+  }, [])
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -34,22 +31,52 @@ const App = () => {
     })
   }
 
+  const deletePerson = (id) => {
+    const person = persons.find(p => p.id === id)
+
+    if (window.confirm(`Delete ${person.name} ?`)) {
+      personService
+        .remove(id)
+        .then(() => {
+          setPersons(persons.filter(p => p.id !== id))
+        })
+    }
+  }
+
+  const updatePerson = (id, newPerson) => {
+    if (window.confirm(`${newPerson.name} is already added to the phonebook, replace the old number with a new one?`)) {
+      personService
+        .update(id, newPerson)
+        .then(returnedPerson => {
+          setPersons(persons.map(p => p.id === id ? returnedPerson : p))
+      })
+    }
+  }
+
   const addPerson = (event) => {
     event.preventDefault()
     const nameObject = {
-      ...newInput,
-      id: persons.length + 1
+      ...newInput
     }
+    const sameName = persons.some(person => person.name === nameObject.name)
+    const sameNumber = persons.some(person => person.name === nameObject.number)
+    const noInput = newInput.name === '' && newInput.number === ''
 
-    if (persons.some(person => person.name === nameObject.name)) {
-      const errorMsg = `${nameObject.name} is already added to the phonebook`
-      alert(errorMsg)
-    } else if (newInput.name === '' && newInput.number === '') {
+    if (sameName && sameNumber) {
+      alert(`${nameObject.name} is already added to the phone book`)
+    } else if (sameName && !sameNumber) {
+      const samePerson = persons.find(person => person.name === nameObject.name)
+      updatePerson(samePerson.id, nameObject)
+    } else if (noInput) {
       alert('Please input something')
     } else {
-      setPersons(persons.concat(nameObject))
+      personService
+        .create(nameObject)
+        .then(returnedPerson => {
+          setPersons(persons.concat(returnedPerson))
+        })
     }
-    setInput({name: '', number: '', id: ''})
+    setInput({ name: '', number: ''})
   }
 
   return (
@@ -59,7 +86,7 @@ const App = () => {
       <h3>Add a new</h3>
       <PersonForm submit={addPerson} change={handleChange} name={newInput.name} number={newInput.number} />
       <h2>Numbers</h2>
-      <Persons collection={personsToShow}/>
+      <Persons collection={personsToShow} deletePerson={deletePerson} />
     </div>
   )
 }
