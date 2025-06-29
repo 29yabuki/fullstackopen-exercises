@@ -3,6 +3,7 @@ import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
 import personService from './services/persons'
+import Notification from './components/Notification'
 
 const App = () => {
   const [persons, setPersons] = useState([])
@@ -10,6 +11,8 @@ const App = () => {
   const [newInput, setInput] = useState(
     {name: '', number: ''}
   )
+  const [addMessage, setAddMessage] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
   const personsToShow = persons.filter(person =>
     person.name.toLocaleLowerCase().includes(search.toLowerCase()), 
     persons
@@ -49,7 +52,16 @@ const App = () => {
         .update(id, newPerson)
         .then(returnedPerson => {
           setPersons(persons.map(p => p.id === id ? returnedPerson : p))
-      })
+        })
+        .catch(error => {
+          console.log('ERROR FOUND')
+          setAddMessage(null)
+          setErrorMessage(`Information of ${newPerson.name} has already been removed from server`)
+          setTimeout(() => {``
+            setErrorMessage(null)
+          }, 5000)
+          setPersons(persons.filter(p => p.id !== id))
+        })
     }
   }
 
@@ -70,6 +82,8 @@ const App = () => {
     } else if (noInput) {
       alert('Please input something')
     } else {
+      setErrorMessage(null)
+      setAddMessage(`Added ${nameObject.name}`)
       personService
         .create(nameObject)
         .then(returnedPerson => {
@@ -82,6 +96,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification add={addMessage} error={errorMessage} />
       <Filter search={search} event={e => setSearch(e.target.value)} />
       <h3>Add a new</h3>
       <PersonForm submit={addPerson} change={handleChange} name={newInput.name} number={newInput.number} />
